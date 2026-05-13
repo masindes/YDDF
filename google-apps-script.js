@@ -25,8 +25,7 @@ const SHEET_NAME = 'Sheet1'   // change if your tab has a different name
 
 function doPost(e) {
   try {
-    const raw  = e.postData ? e.postData.contents : '{}'
-    const data = JSON.parse(raw)
+    const data = e.parameter || {}
 
     const ss    = SpreadsheetApp.openById(SHEET_ID)
     const sheet = ss.getSheetByName(SHEET_NAME) || ss.getActiveSheet()

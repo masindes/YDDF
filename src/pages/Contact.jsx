@@ -6,7 +6,6 @@ import { APPS_SCRIPT_URL } from '../config'
 const GMAIL_TO  = 'yddf94odongo@gmail.com'
 const MSG_MAX   = 1000
 const MSG_MIN   = 20
-const MAX_RETRY = 2
 const EMAIL_RE  = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const PHONE_RE  = /^[+\d][\d\s\-().]{5,19}$/
 const INITIAL   = { first: '', last: '', email: '', phone: '', subject: 'General Enquiry', message: '', _trap: '' }
@@ -25,23 +24,42 @@ function validate(f) {
   return e
 }
 
-// ── POST to Google Apps Script with retry ────────────────────────────────────
-async function postWithRetry(payload, attempt = 0) {
-  try {
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
+// ── Submit via hidden iframe — bypasses CORS and auth redirects entirely ──────
+function submitToSheet(payload) {
+  return new Promise((resolve) => {
+    const id = 'yddf_' + Date.now()
+
+    const iframe = document.createElement('iframe')
+    iframe.name = id
+    iframe.style.cssText = 'display:none;position:fixed;'
+    document.body.appendChild(iframe)
+
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = APPS_SCRIPT_URL
+    form.target = id
+    form.style.cssText = 'display:none;position:fixed;'
+
+    Object.entries(payload).forEach(([k, v]) => {
+      const inp = document.createElement('input')
+      inp.type = 'hidden'
+      inp.name = k
+      inp.value = String(v)
+      form.appendChild(inp)
     })
-    return { ok: true }
-  } catch {
-    if (attempt < MAX_RETRY) {
-      await new Promise(r => setTimeout(r, 800 * Math.pow(2, attempt)))
-      return postWithRetry(payload, attempt + 1)
+
+    const done = () => {
+      try { document.body.removeChild(form) } catch (_) {}
+      try { document.body.removeChild(iframe) } catch (_) {}
+      resolve()
     }
-    return { ok: false }
-  }
+
+    iframe.addEventListener('load', done, { once: true })
+    setTimeout(done, 8000) // fallback if load never fires
+
+    document.body.appendChild(form)
+    form.submit()
+  })
 }
 
 // ── Gmail direct-contact helper (sidebar / header strip only) ────────────────
@@ -59,14 +77,8 @@ export default function Contact() {
   const [form,    setForm]    = useState(INITIAL)
   const [errors,  setErrors]  = useState({})
   const [touched, setTouched] = useState(new Set())
-  const [status,  setStatus]  = useState('idle') // idle | submitting | success | error
-  const [toast,   setToast]   = useState(null)
+  const [status,  setStatus]  = useState('idle') // idle | submitting | success
   const firstErrorRef = useRef(null)
-
-  function showToast(msg, type = 'error', ms = 6000) {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), ms)
-  }
 
   // live validation — only for already-touched fields
   function change(key) {
@@ -103,7 +115,7 @@ export default function Contact() {
     }
 
     setStatus('submitting')
-    const result = await postWithRetry({
+    await submitToSheet({
       first:   form.first.trim(),
       last:    form.last.trim(),
       email:   form.email.trim(),
@@ -111,13 +123,7 @@ export default function Contact() {
       subject: form.subject,
       message: form.message.trim(),
     })
-
-    if (result.ok) {
-      setStatus('success')
-    } else {
-      setStatus('idle')
-      showToast('Could not send your message. Please try again or call us directly.')
-    }
+    setStatus('success')
   }
 
   // Field styling: normal / error / valid
@@ -336,11 +342,6 @@ export default function Contact() {
         </div>
       </div>
 
-      {toast && (
-        <div className={`fixed bottom-6 right-6 px-5 py-4 rounded-[4px] text-[0.86rem] font-medium z-[9999] max-w-[300px] leading-snug shadow-xl border-l-[3px] bg-white text-[#374B5E] border-red-400`}>
-          {toast.msg}
-        </div>
-      )}
     </>
   )
 }
