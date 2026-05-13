@@ -65,15 +65,14 @@ function doPost(e) {
       (data.message|| '').trim(),
     ])
 
-    // Optional: send yourself a notification email
-    // MailApp.sendEmail({
-    //   to: 'yddf94odongo@gmail.com',
-    //   subject: 'New YDDF Contact: ' + (data.subject || 'General Enquiry'),
-    //   body: 'From: ' + data.first + ' ' + data.last +
-    //         '\nEmail: ' + data.email +
-    //         '\nPhone: ' + data.phone +
-    //         '\n\n' + data.message,
-    // })
+    MailApp.sendEmail({
+      to: 'yddf94odongo@gmail.com',
+      subject: 'New YDDF Contact: ' + (data.subject || 'General Enquiry'),
+      body: 'From: ' + data.first + ' ' + data.last +
+            '\nEmail: ' + data.email +
+            '\nPhone: ' + data.phone +
+            '\n\n' + data.message,
+    })
 
     return buildResponse({ success: true })
   } catch (err) {

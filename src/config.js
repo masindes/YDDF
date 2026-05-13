@@ -4,4 +4,4 @@
 export const APPS_SCRIPT_URL = ''
 
 // Do not edit this — used by the form to detect an unconfigured state.
-export const SHEET_CONFIGURED = APPS_SCRIPT_URL.startsWith('https://script.google.com/macros/s/AKfycbzyzKYNH60g0Tfp9yY5PIUD0cuZDOC52lcjRhShQuLhCtZTX0iK6OCszkRe6geZf4Yl/exec')
+export const SHEET_CONFIGURED = APPS_SCRIPT_URL.startsWith('https://script.google.com/macros/s/AKfycbxylTZhqt8kjcR6IvDpwdIkPRL35KyXgHetC9NYvH8R4JmkbZP8VMNGdHrJN1eK9hA5/exec')
