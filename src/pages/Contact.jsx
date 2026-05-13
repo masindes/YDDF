@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { APPS_SCRIPT_URL } from '../config'
+import { APPS_SCRIPT_URL, SHEET_CONFIGURED } from '../config'
 
 export default function Contact() {
   const [form, setForm] = useState({ first: '', last: '', email: '', phone: '', subject: 'General Enquiry', message: '' })
@@ -20,12 +20,20 @@ export default function Contact() {
       return
     }
 
+    // If the Google Sheet hasn't been configured yet, open a pre-filled mailto
+    if (!SHEET_CONFIGURED) {
+      const subject = encodeURIComponent(`[YDDF Contact] ${form.subject}`)
+      const body = encodeURIComponent(
+        `Name: ${form.first} ${form.last}\nEmail: ${form.email}\nPhone: ${form.phone || 'N/A'}\n\n${form.message}`
+      )
+      window.location.href = `mailto:yddf94odongo@gmail.com?subject=${subject}&body=${body}`
+      return
+    }
+
     setLoading(true)
     try {
-      // Apps Script requires no-cors because it doesn't return an
-      // Access-Control-Allow-Origin header for doPost endpoints.
-      // The request still succeeds and writes to the sheet — the
-      // response body is opaque but we treat completion as success.
+      // Apps Script requires no-cors — the request still writes to the sheet;
+      // the response body is opaque so we treat fetch completion as success.
       await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -147,7 +155,19 @@ export default function Contact() {
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
-              <h3 className="font-serif text-navy font-semibold text-[1.1rem] mb-6">Send a Message</h3>
+              <h3 className="font-serif text-navy font-semibold text-[1.1rem] mb-4">Send a Message</h3>
+
+              {/* Google Sheet notice — uncomment once APPS_SCRIPT_URL is configured in src/config.js */}
+              {/* {!SHEET_CONFIGURED && (
+                <div className="flex items-start gap-3 bg-[#FBF5E6] border border-gold/30 rounded-[4px] px-4 py-3 mb-5">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#B8902A" strokeWidth="2" className="w-4 h-4 shrink-0 mt-[2px]"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <p className="text-[0.8rem] text-[#607080] leading-[1.6]">
+                    Clicking <strong className="text-navy">Send Message</strong> will open your email app pre-filled with your message.
+                    To save responses directly to a Google Sheet instead, follow the steps in{' '}
+                    <code className="text-[0.75rem] bg-white border border-[#D5DEED] px-1 rounded">GOOGLE_SHEET_SETUP.md</code>.
+                  </p>
+                </div>
+              )} */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-[0.72rem] font-bold tracking-[0.08em] uppercase text-[#374B5E] mb-2">First Name</label>
