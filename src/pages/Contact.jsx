@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { APPS_SCRIPT_URL, SHEET_CONFIGURED } from '../config'
+import { APPS_SCRIPT_URL } from '../config'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const GMAIL_TO  = 'yddf94odongo@gmail.com'
@@ -12,7 +12,7 @@ const PHONE_RE  = /^[+\d][\d\s\-().]{5,19}$/
 const INITIAL   = { first: '', last: '', email: '', phone: '', subject: 'General Enquiry', message: '', _trap: '' }
 const SUBJECTS  = ['General Enquiry','Partnership / Collaboration','Donation / Funding','Volunteer Opportunity','Program Information','Media & Press','Other']
 
-// ── Algorithm 1: Pure validation ─────────────────────────────────────────────
+// ── Pure validation ───────────────────────────────────────────────────────────
 function validate(f) {
   const e = {}
   if (!f.first.trim())                        e.first   = 'First name is required'
@@ -25,7 +25,7 @@ function validate(f) {
   return e
 }
 
-// ── Algorithm 2: Retry with exponential backoff ──────────────────────────────
+// ── POST to Google Apps Script with retry ────────────────────────────────────
 async function postWithRetry(payload, attempt = 0) {
   try {
     await fetch(APPS_SCRIPT_URL, {
@@ -44,96 +44,13 @@ async function postWithRetry(payload, attempt = 0) {
   }
 }
 
-// ── Gmail helper ─────────────────────────────────────────────────────────────
+// ── Gmail direct-contact helper (sidebar / header strip only) ────────────────
 function gmailUrl(subject = '', body = '') {
   return (
     'https://mail.google.com/mail/?view=cm&fs=1' +
     '&to='  + encodeURIComponent(GMAIL_TO) +
     '&su='  + encodeURIComponent(subject) +
     '&body='+ encodeURIComponent(body)
-  )
-}
-function buildGmailUrl(f) {
-  return gmailUrl(
-    `[YDDF Contact] ${f.subject}`,
-    `Name: ${f.first.trim()} ${f.last.trim()}\nEmail: ${f.email.trim()}\nPhone: ${f.phone.trim() || 'N/A'}\n\n${f.message.trim()}`
-  )
-}
-
-// ── Setup accordion ──────────────────────────────────────────────────────────
-const SETUP_STEPS = [
-  {
-    num: '01', title: 'Open Apps Script from your Google Sheet',
-    detail: (<>Open your{' '}<a href="https://docs.google.com/spreadsheets/d/1tZeaOy2I24NkCyLZdnU1rw76U_hUpwGsEBcIoVJ8m8Q" target="_blank" rel="noopener noreferrer" className="text-gold underline hover:text-gold-light">Google Sheet</a>, then click <strong>Extensions → Apps Script</strong>.</>),
-  },
-  {
-    num: '02', title: 'Paste the script',
-    detail: (<>Press <kbd className="bg-[#EDF1F6] border border-[#D5DEED] px-1 rounded text-[0.78rem]">Ctrl+A</kbd>, delete, then paste the entire contents of <code className="bg-[#EDF1F6] border border-[#D5DEED] px-1 rounded text-[0.78rem]">google-apps-script.js</code> and click <strong>Save (💾)</strong>.</>),
-  },
-  {
-    num: '03', title: 'Deploy as a Web App',
-    detail: (<>Click <strong>Deploy → New deployment → ⚙ Web app</strong>. Set <strong>Execute as: Me</strong>, <strong>Who has access: Anyone</strong>, then <strong>Deploy</strong>.</>),
-  },
-  {
-    num: '04', title: 'Authorize the script',
-    detail: (<>Click <strong>Authorize access</strong>, choose your Google account. If shown "not verified", click <strong>Advanced → Go to YDDF Contact Form (unsafe) → Allow</strong>.</>),
-  },
-  {
-    num: '05', title: 'Copy the Web App URL',
-    detail: (<>After deployment copy the URL like: <code className="block mt-2 bg-[#EDF1F6] border border-[#D5DEED] px-3 py-2 rounded text-[0.78rem] break-all">https://script.google.com/macros/s/AKfycb.../exec</code></>),
-  },
-  {
-    num: '06', title: 'Paste into src/config.js',
-    detail: (<>Open <code className="bg-[#EDF1F6] border border-[#D5DEED] px-1 rounded text-[0.78rem]">src/config.js</code> and set:<pre className="mt-2 bg-[#0A2647] text-white text-[0.76rem] px-4 py-3 rounded overflow-x-auto">{`export const APPS_SCRIPT_URL =\n  'https://script.google.com/macros/s/YOUR_ID/exec'`}</pre>Save, then <strong>redeploy to Vercel</strong>.</>),
-  },
-]
-
-function SetupAccordion() {
-  const [open, setOpen] = useState(null)
-  return (
-    <section className="bg-white border-t border-[#D5DEED] py-16 px-[5vw]">
-      <div className="max-w-[760px] mx-auto">
-        <div className="flex items-start justify-between gap-4 mb-8">
-          <div>
-            <span className="block text-[0.7rem] font-bold tracking-[0.2em] uppercase text-gold mb-2">Developer Setup</span>
-            <h2 className="font-serif text-navy font-bold text-[1.5rem]">Connect to Google Sheets</h2>
-            <div className="w-12 h-[3px] bg-gold rounded-[2px] mt-3" />
-          </div>
-          <div className={`shrink-0 flex items-center gap-2 px-3 py-1 rounded-full border text-[0.72rem] font-bold tracking-[0.05em] uppercase ${SHEET_CONFIGURED ? 'bg-forest/10 border-forest/30 text-forest' : 'bg-[#FBF5E6] border-gold/30 text-gold'}`}>
-            <span className={`w-2 h-2 rounded-full ${SHEET_CONFIGURED ? 'bg-forest' : 'bg-gold'}`} />
-            {SHEET_CONFIGURED ? 'Connected' : 'Not configured'}
-          </div>
-        </div>
-        <p className="text-[#607080] text-[0.95rem] leading-[1.8] mb-8">
-          {SHEET_CONFIGURED
-            ? 'Your Google Sheet is connected. Contact form submissions are saved automatically.'
-            : 'Follow the 6 steps below to save form responses to your Google Sheet. Until configured, Send Message opens Gmail.'}
-        </p>
-        <div className="flex flex-col gap-3">
-          {SETUP_STEPS.map((step, i) => {
-            const isOpen = open === i
-            return (
-              <div key={step.num} className={`border rounded-[6px] overflow-hidden transition-colors duration-200 ${isOpen ? 'border-navy' : 'border-[#D5DEED] hover:border-navy/40'}`}>
-                <button onClick={() => setOpen(isOpen ? null : i)} className="w-full flex items-center gap-4 px-5 py-4 text-left bg-white cursor-pointer border-0">
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[0.72rem] font-bold shrink-0 ${isOpen ? 'bg-navy text-white' : 'bg-[#EDF1F6] text-[#607080]'}`}>{step.num}</span>
-                  <span className="flex-1 font-semibold text-[0.92rem] text-navy">{step.title}</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`w-4 h-4 text-[#607080] transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                {isOpen && (
-                  <div className="px-5 pb-5 pt-1 bg-[#F7F9FC] border-t border-[#D5DEED] text-[0.88rem] text-[#374B5E] leading-[1.8]">{step.detail}</div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        <div className="mt-6 flex items-start gap-3 bg-[#FBF5E6] border border-gold/25 rounded-[6px] px-5 py-4">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#B8902A" strokeWidth="2" className="w-4 h-4 shrink-0 mt-[3px]"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <p className="text-[0.83rem] text-[#607080] leading-[1.65]">
-            <strong className="text-navy">Tip — Email alerts:</strong> Uncomment the <code className="bg-white border border-[#D5DEED] px-1 rounded text-[0.76rem]">MailApp.sendEmail(...)</code> block in the Apps Script to receive an email on every submission.
-          </p>
-        </div>
-      </div>
-    </section>
   )
 }
 
@@ -146,12 +63,12 @@ export default function Contact() {
   const [toast,   setToast]   = useState(null)
   const firstErrorRef = useRef(null)
 
-  function showToast(msg, type = 'success', ms = 5000) {
+  function showToast(msg, type = 'error', ms = 6000) {
     setToast({ msg, type })
     setTimeout(() => setToast(null), ms)
   }
 
-  // Algorithm 3: live validation — only for already-touched fields
+  // live validation — only for already-touched fields
   function change(key) {
     return (e) => {
       const val = key === 'message' ? e.target.value.slice(0, MSG_MAX) : e.target.value
@@ -173,10 +90,8 @@ export default function Contact() {
   async function handleSubmit(e) {
     e.preventDefault()
 
-    // Algorithm 4: honeypot — silently discard bot submissions
     if (form._trap) return
 
-    // Touch all fields to surface every error
     const all = new Set(['first', 'last', 'email', 'phone', 'message'])
     setTouched(all)
     const errs = validate(form)
@@ -187,23 +102,21 @@ export default function Contact() {
       return
     }
 
-    if (!SHEET_CONFIGURED) {
-      showToast('Form not yet connected to Google Sheet — see setup steps below.', 'error', 7000)
-      return
-    }
-
     setStatus('submitting')
     const result = await postWithRetry({
-      first: form.first.trim(), last: form.last.trim(),
-      email: form.email.trim(), phone: form.phone.trim(),
-      subject: form.subject,    message: form.message.trim(),
+      first:   form.first.trim(),
+      last:    form.last.trim(),
+      email:   form.email.trim(),
+      phone:   form.phone.trim(),
+      subject: form.subject,
+      message: form.message.trim(),
     })
 
     if (result.ok) {
       setStatus('success')
     } else {
-      showToast('Could not send your message. Please try again or call us directly.', 'error', 7000)
       setStatus('idle')
+      showToast('Could not send your message. Please try again or call us directly.')
     }
   }
 
@@ -423,16 +336,8 @@ export default function Contact() {
         </div>
       </div>
 
-      {/* Google Sheet setup accordion */}
-      <SetupAccordion />
-
-      {/* Toast notification */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 px-5 py-4 rounded-[4px] text-[0.86rem] font-medium z-[9999] max-w-[300px] leading-snug shadow-xl border-l-[3px] ${
-          toast.type === 'error'
-            ? 'bg-white text-[#374B5E] border-red-400'
-            : 'bg-navy text-white border-gold'
-        }`}>
+        <div className={`fixed bottom-6 right-6 px-5 py-4 rounded-[4px] text-[0.86rem] font-medium z-[9999] max-w-[300px] leading-snug shadow-xl border-l-[3px] bg-white text-[#374B5E] border-red-400`}>
           {toast.msg}
         </div>
       )}
